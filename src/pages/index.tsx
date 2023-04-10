@@ -59,10 +59,10 @@ function Home() {
               </div>
               <div className="">
                 <Image
-                  src="/images/main-img.png"
+                  src="/images/main.png"
                   width={600}
                   height={600}
-                  alt="main-img"
+                  alt="main"
                 />
               </div>
             </div>
