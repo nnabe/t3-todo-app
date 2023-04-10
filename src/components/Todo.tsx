@@ -1,71 +1,97 @@
-import Head from "next/head";
-import Image from "next/image";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useState } from "react";
+import type { Todo } from "~/server/types";
+import { api } from "~/utils/api";
 
-function Home() {
-  const { data: sessionData, status } = useSession();
-  return (
-    <>
-      <Head>
-        <title>Todo App</title>
-        <meta name="description" content="Full stack todo app" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <div className="min-h-screen bg-olive-one p-0 selection:bg-green-two md:py-24 md:px-8">
-        <main className="mx-auto min-h-screen max-w-none rounded-none bg-cream-four px-5 pt-24 pb-10 outline-none md:max-w-[60rem] md:rounded-2xl md:px-8 md:outline md:outline-4 md:outline-offset-8 md:outline-cream-four">
-          <h1 className="mb-6 text-center text-4xl font-bold text-gray-three">
-            ToDo List
-          </h1>
-          {status !== "loading" && sessionData && (
-            // status が "loading" でない、つまり認証情報の取得が完了している、
-            // かつ、認証されている場合に、下記が表示されます
-            <>
-              <div className="flex flex-col items-center">
-                <p className="text-l text-white mb-4 text-center">
-                  <span>Logged in as {sessionData.user?.email}</span>
-                </p>
-                <button
-                  className="mb-8 inline-flex cursor-pointer items-center justify-center rounded-md py-2 px-4 font-semibold outline outline-2 outline-offset-2 outline-green-one hover:text-green-five"
-                  onClick={() => void signOut()}
-                >
-                  Sign out
-                </button>
-              </div>
-              <div>Todo components coming soon...</div>
-            </>
-          )}
-          {status !== "loading" && !sessionData && (
-            // status が "loading" でない、つまり認証情報の取得が完了している、
-            // かつ、認証されていない場合に、下記が表示されます
-            <div className="flex flex-col items-center">
-              <button
-                className="mb-5 inline-flex cursor-pointer items-center justify-center rounded-md py-2 px-4 font-semibold outline outline-2 outline-offset-2 outline-green-one hover:text-green-five"
-                onClick={() => void signIn()}
-              >
-                Sign In
-              </button>
-              <div className="mb-5 text-xl">
-                <p className="text-center text-gray-four">
-                  Keep your life in order with todolist
-                </p>
-                <p className="text-center text-gray-four">
-                  - The ultimate productivity tool -
-                </p>
-              </div>
-              <div className="">
-                <Image
-                  src="/images/main-img.png"
-                  width={600}
-                  height={600}
-                  alt="main-img"
-                />
-              </div>
-            </div>
-          )}
-        </main>
+type TodoProps = {
+    todo: Todo;
+};
+export function Todo({ todo }: TodoProps) {
+    const { id, text, isCompleted } = todo;
+
+    const [currentTodo, setCurrentTodo] = useState(text);
+
+    const trpc = api.useContext();
+
+    const { mutate: toggleMutation } = api.todo.toggle.useMutation({
+      onSettled: async () => {
+        await trpc.todo.all.invalidate();
+      },
+    });
+
+    const { mutate: deleteMutation } = api.todo.delete.useMutation({
+      onSettled: async () => {
+        await trpc.todo.all.invalidate();
+      },
+    });
+
+    const { mutate: updateMutation } = api.todo.update.useMutation({
+      onSettled: async () => {
+        await trpc.todo.all.invalidate();
+      },
+    });
+  
+    return (
+      <div className="flex items-center justify-between rounded-md border-2 border-gray-one px-5 py-4">
+        <div className="flex w-full max-w-lg items-center justify-start">
+          <input
+            className="h-4 w-4 rounded border border-gray-three bg-cream-four text-green-four focus:border-green-five focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-green-five"
+            type="checkbox"
+            name="done"
+            id={id}
+            checked={isCompleted}
+            onChange={(e) => {
+              toggleMutation({ id, is_completed: e.target.checked });
+            }}
+          />
+          <input
+        className="ml-5 flex-1 text-ellipsis rounded-none border-x-0 border-t-0 border-b border-dashed border-b-gray-two bg-cream-four px-0 pb-1 text-base font-normal text-gray-three placeholder:text-gray-two focus:border-gray-three focus:outline-none focus:ring-0"
+            id={`${todo.id}-text`}
+            type="text"
+            placeholder="Enter a todo"
+            value={currentTodo}
+            onChange={(e) => {
+              setCurrentTodo(e.target.value);
+            }}
+            onBlur={(e) => {
+              updateMutation({ id, text: e.target.value });
+            }}
+          />
+          <span
+            className={`${
+              isCompleted ? "bg-green-three" : "bg-leaf-one"
+            } ml-5 hidden rounded-full  py-0.5 px-2 text-sm font-normal text-gray-five md:block`}
+          >
+            {isCompleted ? "Complete" : "In Progress"}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="group ml-4 flex items-center justify-center rounded-md bg-cream-four p-2 hover:bg-steel-one focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-five"
+          onClick={() => {
+            deleteMutation(id);
+          }}   
+        >
+          <svg
+            className="h-5 w-5 text-steel-three group-hover:text-gray-five"
+            width="32"
+            height="32"
+            viewBox="0 0 32 32"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <g clipPath="url(#clip0_35_392)">
+              <path
+                d="M24 6.4H32V9.6H28.8V30.4C28.8 30.8244 28.6314 31.2313 28.3314 31.5314C28.0313 31.8314 27.6243 32 27.2 32H4.8C4.37565 32 3.96869 31.8314 3.66863 31.5314C3.36857 31.2313 3.2 30.8244 3.2 30.4V9.6H0V6.4H8V1.6C8 1.17565 8.16857 0.768688 8.46863 0.468629C8.76869 0.168571 9.17565 0 9.6 0H22.4C22.8243 0 23.2313 0.168571 23.5314 0.468629C23.8314 0.768688 24 1.17565 24 1.6V6.4ZM25.6 9.6H6.4V28.8H25.6V9.6ZM18.2624 19.2L21.0912 22.0288L18.8288 24.2912L16 21.4624L13.1712 24.2912L10.9088 22.0288L13.7376 19.2L10.9088 16.3712L13.1712 14.1088L16 16.9376L18.8288 14.1088L21.0912 16.3712L18.2624 19.2ZM11.2 3.2V6.4H20.8V3.2H11.2Z"
+                fill="currentColor"
+              />
+            </g>
+            <defs>
+              <clipPath id="clip0_35_392">
+                <rect width="32" height="32" fill="white" />
+              </clipPath>
+            </defs>
+          </svg>
+        </button>
       </div>
-    </>
-  );
-}
-
-export default Home;
+    );
+  }
